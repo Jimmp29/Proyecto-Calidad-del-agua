@@ -1,0 +1,175 @@
+---
+title: "Calidad de agua superficial del territorio mexicano"
+author: "Jimena Pedroza & Tamara Guerrero"
+format: pdf
+editor: visual
+---
+
+La calidad del agua superficial en el territorio mexicano es un tema de gran relevancia, ya que este recurso representa una de las principales fuentes de abastecimiento hídrico para el país. El agua superficial se encuentra en cuerpos como ríos, lagos, lagunas y presas, y se utiliza ampliamente para consumo humano, riego agrícola, procesos industriales, generación de energía y conservación de ecosistemas. En México, aproximadamente el 61.3% del agua utilizada proviene de fuentes superficiales.
+
+Este tipo de agua se origina principalmente a partir del escurrimiento de la lluvia sobre la superficie terrestre, la cual se concentra en cuencas hidrográficas distribuidas en todo el territorio nacional. A diferencia del agua subterránea, el agua superficial está en constante movimiento, lo que facilita su renovación natural, pero también la hace más vulnerable a la contaminación. Diversos factores como el crecimiento urbano, la actividad industrial, la agricultura intensiva y el cambio climático han deteriorado la calidad del agua en muchas regiones del país.
+
+La Comisión Nacional del Agua (CONAGUA), a través de la Red Nacional de Medición de la Calidad del Agua (RENAMECA), realiza un monitoreo constante del estado de los cuerpos de agua superficial. Este monitoreo se basa en una serie de indicadores fisicoquímicos y biológicos que permiten evaluar su condición. Entre los principales indicadores se encuentran la Demanda Bioquímica de Oxígeno (DBO5), que mide la cantidad de oxígeno requerido para descomponer la materia orgánica biodegradable, donde valores superiores a 30 mg/L indican una contaminación severa; el Oxígeno Disuelto (OD), esencial para la vida acuática, cuyo nivel óptimo es mayor a 5 mg/L; los Sólidos Suspendidos Totales (SST), que reflejan la turbidez del agua; y los niveles de nutrientes como nitratos y fosfatos, cuya acumulación en exceso puede provocar eutrofización, un fenómeno que reduce el oxígeno disponible y altera los ecosistemas.
+
+También se monitorean los coliformes fecales, los cuales indican contaminación biológica de origen humano o animal, y los metales pesados como plomo, mercurio y arsénico, que representan un riesgo para la salud cuando superan los límites establecidos por las normas ambientales. Estos indicadores permiten tener una visión cuantitativa y objetiva sobre la calidad del agua superficial en diferentes regiones del país.
+
+Según el informe más reciente publicado por la CONAGUA en 2023, del total de cuerpos de agua superficial monitoreados, el 29% presenta una calidad considerada buena, el 35% tiene una calidad aceptable o moderada, y el 36% restante presenta una calidad mala o contaminada. Las zonas más afectadas se ubican en regiones densamente pobladas o con fuerte actividad industrial, como el Valle de México, la zona metropolitana de Guadalajara y partes del norte del país, donde la actividad agrícola intensiva también contribuye a la contaminación del agua.
+
+
+
+```{r}
+
+# Cargar librerías
+library(readxl)
+library(dplyr)
+library(nnet)
+library(randomForest)
+library(ggplot2)
+
+# Leer la hoja de Excel
+data <- read_excel("file_show.xlsx")
+ 
+```
+En esta parte del codigo vamos a Preparar y limpiar los datos antes del análisis.
+En este caso nos debemos asegurar que las variables que utilizamos esten en el formato adecuado y de igual forma eliminar los datos incompletos. 
+```{r}
+# Convertir semáforo en factor
+data <- data %>%
+  mutate(
+    SEMAFORO = as.factor(SEMAFORO),
+    contaminado = ifelse(SEMAFORO == "ROJO", 1, 0)
+  ) %>%
+  filter(!is.na(SEMAFORO) & !is.na(ESTADO) & !is.na(TIPO) & !is.na(CUENCA))
+
+# Ver cuántos sitios hay por categoría
+table(data$SEMAFORO)
+
+```
+
+Tambien convertimos la columna SEMAFORO (que indica la calidad del agua: "ROJO", "VERDE", "AMARILLO") en un factor.
+Los modelos matemáticos (como la regresión logística, multinomial o árboles de decisión) no entienden texto como "ROJO" o "VERDE".Por lo que se debe convertir internamente a variables numéricas.
+
+Asi R lo va a tratar como variable categórica, y no como texto plano.
+
+Esto es esencial para modelos estadísticos y para gráficos categóricos.
+
+contaminado = ifelse(SEMAFORO == "ROJO", 1, 0) Esta parte crea una nueva columna llamada contaminado.
+
+Si el valor en SEMAFORO es "ROJO", le asigna 1 (es decir, sí está contaminado). Si no es "ROJO" (por ejemplo, "VERDE" o "AMARILLO"), le pone 0 (no está contaminado).
+De esta forma se puede hacer un análisis binario: contaminado (1) vs. no contaminado (0).
+
+  filter(!is.na  Y en esta parte elimina las filas que tienen valores faltantes 
+
+
+multinom(): Es la función del paquete nnet que ajusta un modelo de regresión logística multinomial. 
+nuestras variable dependiente seria la categoria del Semaforo es decir lo que queremos predecir y la independiente seria Estado, Tipo, Cuenca. 
+
+El modelo busca entender cómo influye cada una de esas variables en la probabilidad de que el semáforo esté en ROJO, AMARILLO o VERDE.
+```{r}
+library(nnet)  
+
+# Filtrar los datos solo para el estado de Tlaxcala
+data_tlaxcala <- subset(data, ESTADO == "TLAXCALA")
+
+# Multinomial logistic regression solo con datos de Tlaxcala
+modelo_multinomial <- multinom(SEMAFORO ~ TIPO + CUENCA, data = data_tlaxcala)
+summary(modelo_multinomial)
+
+# Evaluar significancia
+z <- summary(modelo_multinomial)$coefficients / summary(modelo_multinomial)$standard.errors
+p_values <- (1 - pnorm(abs(z), 0, 1)) * 2
+print(p_values)
+
+
+```
+El modelo elige una categoría base, por ejemplo, "VERDE", luego estima la probabilidad de estar en "ROJO" o "AMARILLO" en comparación con "VERDE".
+Se crean dos modelos de regresión logística binaria:
+
+"ROJO" vs "VERDE"
+
+"AMARILLO" vs "VERDE"
+
+Cada modelo estima cómo las variables (ESTADO, TIPO, CUENCA) afectan las probabilidades relativas de caer en una u otra categoría.
+
+Este enfoque nos permite ver qué variables afectan la probabilidad de que un sitio esté contaminado (ROJO) o en estado intermedio (AMARILLO) en comparación con no contaminado (VERDE). Y comparar efectos por tipo de sitio, estado o cuenca.
+
+```{r}
+modelo_rf <- randomForest(contaminado ~ ESTADO + TIPO,
+                          data = data_binaria,
+                          importance = TRUE)
+
+```
+
+```{r}
+# Instalar 
+# install.packages("ranger")
+
+library(dplyr)
+library(ranger)
+
+# Limpieza del texto
+data <- data %>%
+  mutate(SEMAFORO = toupper(trimws(SEMAFORO)))
+
+# Filtrado para clasificación binaria
+data_binaria <- data %>%
+  filter(SEMAFORO %in% c("ROJO", "VERDE")) %>%
+  mutate(
+    contaminado = ifelse(SEMAFORO == "ROJO", 1, 0),
+    contaminado = as.factor(contaminado),
+    ESTADO = as.factor(ESTADO),
+    TIPO = as.factor(TIPO),
+    CUENCA = as.factor(CUENCA)
+  )
+
+# Entrenar modelo con ranger 
+modelo_rf <- ranger(
+  contaminado ~ ESTADO + TIPO + CUENCA,
+  data = data_binaria,
+  importance = "impurity",
+  probability = FALSE
+)
+
+# Imprimir resumen del modelo
+print(modelo_rf)
+
+# Importancia de variables
+importance <- modelo_rf$variable.importance
+print("Importancia de variables:")
+print(sort(importance, decreasing = TRUE))
+
+
+
+```
+
+```{r}
+ 
+library(ggplot2)
+library(dplyr)
+
+# Asegúrate de que los niveles estén en el orden correcto
+data <- data %>%
+  mutate(SEMAFORO = factor(SEMAFORO, levels = c("VERDE", "AMARILLO", "ROJO")))
+
+# Gráfico con colores personalizados y orden correcto
+ggplot(data, aes(x = ESTADO, fill = SEMAFORO)) +
+  geom_bar(position = "fill") +
+  scale_fill_manual(
+    values = c("VERDE" = "green", "AMARILLO" = "gold", "ROJO" = "red"),
+    name = "Nivel de contaminación",
+    labels = c("Aceptable", "Contaminada", "Muy contaminada")
+  ) +
+  labs(
+    title = "Proporción de sitios contaminados por estado",
+    y = "Proporción",
+    x = "Estado"
+  ) +
+  theme(axis.text.x = element_text(angle = 90))
+
+
+```
+
+```{r}
+
+
+```

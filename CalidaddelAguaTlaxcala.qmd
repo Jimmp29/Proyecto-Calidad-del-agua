@@ -1,0 +1,61 @@
+---
+title: "Parámetros de calidad del agua en Tlaxcala"
+author: "Jimena Pedroza & Tamara Guerrero"
+format: pdf
+editor: visual
+---
+
+```{r}
+library(readxl)
+library(dplyr)
+
+# Cargar el archivo Excel
+datos <- read_excel("Calidad_del_Agua_Superficial_a.xlsx", sheet = "CASUP_2023")
+```
+
+```{r}
+# Filtrar solo Tlaxcala
+tlaxcala <- datos %>% filter(ESTADO == "TLAXCALA")
+
+colnames(tlaxcala)
+```
+```{r}
+library(dplyr)
+
+# Asegurarse de que las columnas estén en formato numérico
+tlaxcala$`DBO_mg/L` <- as.numeric(tlaxcala$`DBO_mg/L`)
+tlaxcala$`DQO_mg/L` <- as.numeric(tlaxcala$`DQO_mg/L`)
+tlaxcala$`SST_mg/L` <- as.numeric(tlaxcala$`SST_mg/L`)
+tlaxcala$`COLI_FEC_NMP_100mL` <- as.numeric(tlaxcala$`COLI_FEC_NMP_100mL`)
+
+# Filtrar datos sin NA para cada parámetro (opcionalmente, en un paso combinado)
+tlaxcala_filtrado <- tlaxcala %>%
+  filter(!is.na(`DBO_mg/L`),
+         !is.na(`DQO_mg/L`),
+         !is.na(`SST_mg/L`),
+         !is.na(`COLI_FEC_NMP_100mL`))
+```
+```{r}
+# ANOVA para DBO
+anova_dbo <- aov(`DBO_mg/L` ~ MUNICIPIO, data = tlaxcala_filtrado)
+summary(anova_dbo)
+
+# ANOVA para DQO
+anova_dqo <- aov(`DQO_mg/L` ~ MUNICIPIO, data = tlaxcala_filtrado)
+summary(anova_dqo)
+
+# ANOVA para SST
+anova_sst <- aov(`SST_mg/L` ~ MUNICIPIO, data = tlaxcala_filtrado)
+summary(anova_sst)
+
+# ANOVA para Coliformes fecales
+anova_coli <- aov(`COLI_FEC_NMP_100mL` ~ MUNICIPIO, data = tlaxcala_filtrado)
+summary(anova_coli)
+```
+
+
+
+
+
+
+
